@@ -1,5 +1,7 @@
 from builtins import range
 from builtins import object
+from collections import Counter
+
 import numpy as np
 from past.builtins import xrange
 
@@ -77,7 +79,7 @@ class KNearestNeighbor(object):
                 #####################################################################
                 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-                pass
+                dists[i, j] = np.sqrt(np.sum((self.X_train[j] - X[i]) ** 2))
 
                 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -101,7 +103,7 @@ class KNearestNeighbor(object):
             #######################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            dists[i, :] = np.sqrt(np.sum(np.abs(self.X_train - X[i]) ** 2, axis=1))
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -131,7 +133,11 @@ class KNearestNeighbor(object):
         #########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        test_squared = np.sum(X**2, axis=1)
+        train_squared = np.sum(self.X_train**2, axis=1)
+        test_train_dot = np.matmul(X, self.X_train.T)
+
+        dists = np.sqrt(-2*test_train_dot + test_squared[:, np.newaxis] + train_squared.T[np.newaxis, :])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -163,8 +169,7 @@ class KNearestNeighbor(object):
             # Hint: Look up the function numpy.argsort.                             #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
+            closest_y = self.y_train[np.argsort(dists[i])[:k]]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
             #########################################################################
@@ -176,8 +181,18 @@ class KNearestNeighbor(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            occurrence = Counter()
+            for label in closest_y:
+                occurrence[label] += 1
 
+            max_occurs = -1
+            max_label = None
+            for label, times in occurrence.items():
+                if times >= max_occurs and (max_label is None or label < max_label):
+                    max_occurs = times
+                    max_label = label
+
+            y_pred[i] = max_label
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         return y_pred
