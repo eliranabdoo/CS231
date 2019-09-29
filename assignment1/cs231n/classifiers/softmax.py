@@ -3,6 +3,7 @@ import numpy as np
 from random import shuffle
 from past.builtins import xrange
 
+
 def softmax_loss_naive(W, X, y, reg):
     """
     Softmax loss function, naive implementation (with loops)
@@ -32,8 +33,24 @@ def softmax_loss_naive(W, X, y, reg):
     # regularization!                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    num_classes = W.shape[1]
+    num_train = X.shape[0]
 
-    pass
+    for i, X_i in enumerate(X):
+        scores = X_i.dot(W)
+        loss -= scores[y[i]]
+        dW[:, y[i]] -= X_i
+        max_score = max(scores)
+        for j in range(num_classes):
+            weight = np.exp(scores[j] - max_score) / np.sum(np.exp(scores - max_score))
+            dW[:, j] += weight * X_i
+        loss += np.log(np.sum(np.exp(scores)))
+
+    loss /= num_train
+    dW /= num_train
+
+    loss += reg * np.sum(W * W)
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -50,6 +67,9 @@ def softmax_loss_vectorized(W, X, y, reg):
     loss = 0.0
     dW = np.zeros_like(W)
 
+    num_classes = W.shape[1]
+    num_train = X.shape[0]
+
     #############################################################################
     # TODO: Compute the softmax loss and its gradient using no explicit loops.  #
     # Store the loss in loss and the gradient in dW. If you are not careful     #
@@ -58,7 +78,27 @@ def softmax_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = X.dot(W)
+    exp_scores = np.exp(scores)
+    correct_scores = scores[np.arange(num_train), y]
+
+    loss += np.sum(-correct_scores + np.log(np.sum(exp_scores, axis=1)))
+
+    small_scores = scores - np.max(scores, axis=1)[:, np.newaxis]
+    exp_small_scores = np.exp(small_scores)
+
+    normalizers = np.sum(exp_small_scores, axis=1)[:, np.newaxis]
+    weights = exp_small_scores / normalizers
+
+    weights[np.arange(num_train), y] -= 1
+
+    dW += (weights.T.dot(X)).T
+
+    loss /= num_train
+    dW /= num_train
+
+    loss += reg * np.sum(W * W)
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 

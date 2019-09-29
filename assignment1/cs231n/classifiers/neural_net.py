@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from past.builtins import xrange
 
+
 class TwoLayerNet(object):
     """
     A two-layer fully-connected neural network. The net has an input dimension of
@@ -80,7 +81,17 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        X = np.hstack([X, np.ones((X.shape[0], 1))])
+        W1 = np.vstack([W1, b1])
+        W2 = np.vstack([W2, b2])
+
+        forward_pass = np.maximum(X.dot(W1), 0)
+
+        forward_pass = np.hstack([forward_pass, np.ones((forward_pass.shape[0], 1))])
+
+        forward_pass = forward_pass.dot(W2)
+
+        scores = forward_pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -89,7 +100,7 @@ class TwoLayerNet(object):
             return scores
 
         # Compute the loss
-        loss = None
+        loss = 0.0
         #############################################################################
         # TODO: Finish the forward pass, and compute the loss. This should include  #
         # both the data loss and L2 regularization for W1 and W2. Store the result  #
@@ -97,8 +108,23 @@ class TwoLayerNet(object):
         # classifier loss.                                                          #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        num_train = X.shape[0]
 
-        pass
+        exp_scores = np.exp(scores)
+        correct_scores = scores[np.arange(num_train), y]
+        small_scores = scores - np.max(scores, axis=1)[:, np.newaxis]
+        exp_small_scores = np.exp(small_scores)
+        normalizers = np.sum(exp_small_scores, axis=1)[:, np.newaxis]
+        weights = exp_small_scores / normalizers
+        weights[np.arange(num_train), y] -= 1
+
+        dW2b2 = (weights.T.dot(X)).T/num_train + 2*reg*W2
+
+        loss += np.sum(-correct_scores + np.log(np.sum(exp_scores, axis=1)))
+
+        loss /= num_train
+
+        loss += reg * ((np.sum(W1 * W1) + np.sum(W2 * W2)))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -111,7 +137,20 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        exp_scores = np.exp(scores)
+        correct_scores = scores[np.arange(num_train), y]
+
+        loss += np.sum(-correct_scores + np.log(np.sum(exp_scores, axis=1)))
+
+        small_scores = scores - np.max(scores, axis=1)[:, np.newaxis]
+        exp_small_scores = np.exp(small_scores)
+
+        normalizers = np.sum(exp_small_scores, axis=1)[:, np.newaxis]
+        weights = exp_small_scores / normalizers
+
+        weights[np.arange(num_train), y] -= 1
+
+        dW += (weights.T.dot(X)).T
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -191,9 +230,9 @@ class TwoLayerNet(object):
                 learning_rate *= learning_rate_decay
 
         return {
-          'loss_history': loss_history,
-          'train_acc_history': train_acc_history,
-          'val_acc_history': val_acc_history,
+            'loss_history': loss_history,
+            'train_acc_history': train_acc_history,
+            'val_acc_history': val_acc_history,
         }
 
     def predict(self, X):
