@@ -73,26 +73,37 @@ class TwoLayerNet(object):
         N, D = X.shape
 
         # Compute the forward pass
-        scores = None
+        X_ext = np.hstack([X, np.ones((X.shape[0], 1))])
+        W1b1 = np.vstack([W1, b1])
+        W2b2 = np.vstack([W2, b2])
+
+        W1X = X_ext.dot(W1b1)
+        relu1 = np.maximum(W1X ,0.0)
+
+        relu1_ext = np.hstack([relu1, np.ones((relu1.shape[0], 1))])
+        scores = relu1_ext.dot(W2b2)
+
+        exp_scores = np.exp(scores)
+        correct_scores = scores[np.arange(N), y]
+        small_scores = scores - np.max(scores, axis=1)[:, np.newaxis]
+        exp_small_scores = np.exp(small_scores)
+        normalizers = np.sum(exp_small_scores, axis=1)[:, np.newaxis]
+        weights = exp_small_scores / normalizers
+        weights[np.arange(N), y] -= 1
+
+        dW2 = relu1_ext.T.dot(weights) / N + 2 * reg * W2b2
+
+        dsm_drelu = weights.dot(W2b2.T)
+        dsm_drelu[relu1_ext <= 0] = 0
+
+        dW1 = X_ext.T.dot(dsm_drelu[:, :-1]) / N
+        dW1 += 2 * reg * W1b1
         #############################################################################
         # TODO: Perform the forward pass, computing the class scores for the input. #
         # Store the result in the scores variable, which should be an array of      #
         # shape (N, C).                                                             #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        X = np.hstack([X, np.ones((X.shape[0], 1))])
-        W1 = np.vstack([W1, b1])
-        W2 = np.vstack([W2, b2])
-
-        forward_pass = np.maximum(X.dot(W1), 0)
-
-        forward_pass = np.hstack([forward_pass, np.ones((forward_pass.shape[0], 1))])
-
-        forward_pass = forward_pass.dot(W2)
-
-        scores = forward_pass
-
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # If the targets are not given then jump out, we're done
@@ -108,49 +119,24 @@ class TwoLayerNet(object):
         # classifier loss.                                                          #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-        num_train = X.shape[0]
-
-        exp_scores = np.exp(scores)
-        correct_scores = scores[np.arange(num_train), y]
-        small_scores = scores - np.max(scores, axis=1)[:, np.newaxis]
-        exp_small_scores = np.exp(small_scores)
-        normalizers = np.sum(exp_small_scores, axis=1)[:, np.newaxis]
-        weights = exp_small_scores / normalizers
-        weights[np.arange(num_train), y] -= 1
-
-        dW2b2 = (weights.T.dot(X)).T/num_train + 2*reg*W2
 
         loss += np.sum(-correct_scores + np.log(np.sum(exp_scores, axis=1)))
-
-        loss /= num_train
-
-        loss += reg * ((np.sum(W1 * W1) + np.sum(W2 * W2)))
+        loss /= N
+        loss += reg * ((np.sum(W1b1 * W1b1) + np.sum(W2b2 * W2b2)))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # Backward pass: compute gradients
-        grads = {}
+        grads = {'W1': dW1[:-1],
+                 'b1': dW1[-1],
+                 'W2': dW2[:-1],
+                 'b2': dW2[-1]}
         #############################################################################
         # TODO: Compute the backward pass, computing the derivatives of the weights #
         # and biases. Store the results in the grads dictionary. For example,       #
         # grads['W1'] should store the gradient on W1, and be a matrix of same size #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        exp_scores = np.exp(scores)
-        correct_scores = scores[np.arange(num_train), y]
-
-        loss += np.sum(-correct_scores + np.log(np.sum(exp_scores, axis=1)))
-
-        small_scores = scores - np.max(scores, axis=1)[:, np.newaxis]
-        exp_small_scores = np.exp(small_scores)
-
-        normalizers = np.sum(exp_small_scores, axis=1)[:, np.newaxis]
-        weights = exp_small_scores / normalizers
-
-        weights[np.arange(num_train), y] -= 1
-
-        dW += (weights.T.dot(X)).T
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -195,7 +181,9 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            batch_indices = np.random.choice(np.arange(num_train), batch_size)
+            X_batch = X[batch_indices, :]
+            y_batch = y[batch_indices]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -211,7 +199,9 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            for param, grad in grads.items():
+                cur_grad = self.params[param]
+                self.params[param] = cur_grad - learning_rate * grad
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -250,14 +240,29 @@ class TwoLayerNet(object):
           the elements of X. For all i, y_pred[i] = c means that X[i] is predicted
           to have class c, where 0 <= c < C.
         """
-        y_pred = None
+        y_pred = np.zeros(X.shape[0])
 
         ###########################################################################
         # TODO: Implement this function; it should be VERY simple!                #
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # Unpack variables from the params dictionary
+        W1, b1 = self.params['W1'], self.params['b1']
+        W2, b2 = self.params['W2'], self.params['b2']
+        N, D = X.shape
+
+        # Compute the forward pass
+        X_ext = np.hstack([X, np.ones((N, 1))])
+        W1b1 = np.vstack([W1, b1])
+        W2b2 = np.vstack([W2, b2])
+
+        W1X = X_ext.dot(W1b1)
+        relu1 = np.maximum(W1X, 0.0)
+
+        relu1_ext = np.hstack([relu1, np.ones((relu1.shape[0], 1))])
+        scores = relu1_ext.dot(W2b2)
+        y_pred += np.argmax(scores, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
