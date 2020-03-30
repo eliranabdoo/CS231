@@ -1,6 +1,3 @@
-from builtins import range
-from functools import reduce
-
 import numpy as np
 
 
@@ -67,7 +64,7 @@ def affine_backward(dout, cache):
 
     dx = dout.dot(w.T).reshape(x.shape)
     db = np.ones(N).dot(dout)
-    dw = x.ravel().reshape(N,D).T.dot(dout)
+    dw = x.ravel().reshape(N, D).T.dot(dout)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -119,7 +116,7 @@ def relu_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    dout[x<0] = 0
+    dout[x < 0] = 0
     dx = dout
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -175,7 +172,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     running_mean = bn_param.get('running_mean', np.zeros(D, dtype=x.dtype))
     running_var = bn_param.get('running_var', np.zeros(D, dtype=x.dtype))
 
-    out, cache = None, None
+    out, cache = None, {}
     if mode == 'train':
         #######################################################################
         # TODO: Implement the training-time forward pass for batch norm.      #
@@ -200,7 +197,21 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        sample_mean = np.mean(x, axis=0)
+        sample_var = np.var(x, axis=0)
+
+        x_norm = (x - sample_mean) / np.sqrt(sample_var + eps)
+        out = gamma * x_norm + beta
+
+        running_mean = running_mean * momentum + (1 - momentum) * sample_mean
+        running_var = running_var * momentum + (1 - momentum) * sample_var
+
+        cache['x_norm'] = x_norm
+        cache['eps'] = eps
+        cache['var'] = sample_var
+        cache['mean'] = sample_mean
+        cache['x'] = x
+        cache['gamma'] = gamma
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -215,7 +226,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        x_norm = (x - running_mean) / np.sqrt(running_var + eps)
+        out = gamma * x_norm + beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -257,7 +269,21 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x_norm = cache['x_norm']
+    eps = cache['eps']
+    var = cache['var']
+    mean = cache['mean']
+    x = cache['x']
+    gamma = cache['gamma']
+    N = dout.shape[0]
+    dgamma = np.sum(np.multiply(dout, x_norm), axis=0)
+    dbeta = np.sum(dout, axis=0)
+
+    dxnorm = np.multiply(dout, gamma)
+    sqrt_inv_var = np.sqrt(np.ones_like(var)/(var + eps))
+    dvar = np.sum(np.multiply(np.multiply(dxnorm, (x-mean)), -0.5*(sqrt_inv_var**3)), axis=0)
+    dmean = np.sum(np.multiply(dxnorm, -1*sqrt_inv_var), axis=0) + np.multiply(dvar, np.sum(-2*(x-mean), axis=0)/N)
+    dx = np.multiply(dxnorm, sqrt_inv_var) + np.multiply(dvar, 2*(x-mean)/N) + dmean/N
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -291,9 +317,22 @@ def batchnorm_backward_alt(dout, cache):
     # single statement; our implementation fits on a single 80-character line.#
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    x_norm = cache['x_norm']
+    eps = cache['eps']
+    var = cache['var']
+    mean = cache['mean']
+    x = cache['x']
+    gamma = cache['gamma']
+    N = dout.shape[0]
+    dgamma = np.sum(np.multiply(dout, x_norm), axis=0)
+    dbeta = np.sum(dout, axis=0)
 
-    pass
-
+    dxnorm = np.multiply(dout, gamma)
+    sqrt_inv_var = np.sqrt(np.ones_like(var) / (var + eps))
+    dvar = np.sum(np.multiply(np.multiply(dxnorm, (x - mean)), -0.5 * (sqrt_inv_var ** 3)), axis=0)
+    dmean = np.sum(np.multiply(dxnorm, -1 * sqrt_inv_var), axis=0) + np.multiply(dvar,
+                                                                                 np.sum(-2 * (x - mean), axis=0) / N)
+    dx = np.multiply(dxnorm, sqrt_inv_var) + np.multiply(dvar, 2 * (x - mean) / N) + dmean / N
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -707,7 +746,7 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     - cache: Values needed for the backward pass
     """
     out, cache = None, None
-    eps = gn_param.get('eps',1e-5)
+    eps = gn_param.get('eps', 1e-5)
     ###########################################################################
     # TODO: Implement the forward pass for spatial group normalization.       #
     # This will be extremely similar to the layer norm implementation.        #
